@@ -214,7 +214,8 @@ def upload_media(data, media_type_name, to_user_id, post_fn):
 
 
 def build_media_item(media_type_name, media, file_name="", cipher_size=0,
-                     plain_size=0):
+                     plain_size=0, voice_playtime_ms=0, voice_sample_rate=16000,
+                     voice_text=""):
     """按类型组装 sendmessage 的 item."""
     t = {"image": 2, "voice": 3, "file": 4, "video": 5}[media_type_name]
     if media_type_name == "image":
@@ -227,8 +228,18 @@ def build_media_item(media_type_name, media, file_name="", cipher_size=0,
             "file_name": file_name or "file.bin",
             "len": str(plain_size),
         }}
-    # voice 发送格式未经实测, 按对称结构组装
-    return {"type": t, "voice_item": {"media": media}}
+    # voice: 语音气泡(voice_item)会被微信客户端静默丢弃 —— 接口返回 ok:true
+    # 但用户收不到。独立项目 wechat-cc 已于 2026-04-23 用 4 组配置实测确认
+    # (voice_item/encode_type=7 路径被客户端丢弃, openclaw-weixin 有 VoiceItem
+    # 类型但无 sendVoice, Tencent 未开放该能力)。我方 2026-10-11 的 5 次实测
+    # (含原样回发官方 SILK 文件)同样全部静默丢失, 结论一致。
+    # 解法: 语音走 file 类型发可播放音频(WAV/MP3), 用户点开即听。
+    # 此分支保留仅供将来 Tencent 开放后启用, 当前发送语音请用 media_type="file".
+    return {"type": t, "voice_item": {
+        "media": media,
+        "playtime": int(voice_playtime_ms),
+        "sample_rate": int(voice_sample_rate),
+    }}
 
 
 # ---------- 语音转写 ----------

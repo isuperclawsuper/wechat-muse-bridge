@@ -54,3 +54,39 @@ hook `wechat-inbox` (15s) 叫醒 agent → 回复经 `send_reply.py` 发回微�
 - `token_expired.flag` 出现 = errcode -14, 凭证过期 → 重新扫码绑定
   (`qr_login.py make` 取码 → 用户扫 → `wait` 确认)
 - 会话约 24h 过期, 属腾讯侧限制, 到期重扫即可
+
+## 语音发送(2026-10-11 实测结论)
+
+微信客户端会**静默丢弃** bot 发的语音气泡(`voice_item`): 接口返回
+`ok:true` + `message_id`, 但用户收不到。5 次实测(含原样回发官方
+SILK 文件)全部丢失; 独立项目 wechat-cc 亦于 2026-04-23 经 4 组配置
+实测确认(腾讯未开放 bot 语音气泡能力)。
+
+解法: 语音一律发成**可播放的音频文件**。`send_voice.py` 把文本用 TTS
+合成中文 MP3, 走 `--media-type file` 发送, 用户点开即听:
+
+- `send_voice.py --to USER_ID --context-token TOKEN --text "要说的话"`
+- `send_voice.py --to USER_ID --text-file /tmp/wechat_reply.txt`
+  (token 为空时自动取该用户最新消息的 context_token)
+
+不要再尝试 `--media-type voice`, 当前只会静默丢失。
+
+## 默认文字加语音
+
+`wechat-inbox` 钩子指令已改为每次回复默认"文字加语音": 文字经
+`send_reply.py` 发出后, 再调 `send_voice.py` 把同一文本读出来发成 MP3
+文件。语音失败不影响文字回复的判定。
+
+## 每日推送(2026-10-11 新增)
+
+- `daily_push.py` — 每天 12:00 / 18:00(上海时间)各推一条"高性价比人生指南"
+  (eternity4719/HowToLiveBetter), 从 `lifeguide/items.json`(677 条)里按
+  收益大/不花钱/少时间/不吃毅力筛选轮换, 进度记在 `lifeguide/push_state.json`
+- `wechat-push-noon.service` / `wechat-push-noon.timer`、
+  `wechat-push-evening.service` / `wechat-push-evening.timer` —
+  systemd 定时单元(正本, /etc 下的是副本, 看门狗会自动恢复)
+- `send_push.py` — 通用推送脚本: 用该用户最新消息的 context_token
+  发一条纯文本(供定时提醒等一次性推送调用)
+
+注意: 三个脚本里的 `USER` 常量是占位符, 换成你自己的微信用户 ID
+(绑定后第一条消息的发送者)。

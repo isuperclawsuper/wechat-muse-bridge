@@ -53,6 +53,23 @@ def api_post(path, body, token, timeout):
         return json.loads(r.read().decode("utf-8"))
 
 
+def _voice_kwargs(media_type, media_path):
+    """语音发送: 从 SILK 文件解码算出时长(ms), 缺了 playtime 会被腾讯静默丢弃."""
+    if media_type != "voice":
+        return {}
+    try:
+        import io
+        import pysilk
+        with open(media_path, "rb") as f:
+            silk_data = f.read()
+        out = io.BytesIO()
+        pysilk.decode(io.BytesIO(silk_data), out, 16000)
+        ms = int(len(out.getvalue()) / (16000 * 2) * 1000)
+        return {"voice_playtime_ms": ms, "voice_sample_rate": 16000}
+    except Exception:
+        return {"voice_playtime_ms": 0, "voice_sample_rate": 16000}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--to", required=True, help="目标用户 ID")
@@ -64,6 +81,8 @@ def main():
                     help="媒体类型")
     ap.add_argument("--image", default=None,
                     help="兼容旧调用: 等价于 --media PATH --media-type image")
+    ap.add_argument("--voice-text", default="",
+                    help="语音转写文本: 放进 voice_item 的 text 字段")
     args = ap.parse_args()
     if args.image and not args.media:
         args.media, args.media_type = args.image, "image"
@@ -107,7 +126,9 @@ def main():
         item = build_media_item(
             args.media_type, media,
             file_name=os.path.basename(args.media),
-            cipher_size=cipher_size, plain_size=len(data))
+            cipher_size=cipher_size, plain_size=len(data),
+            voice_text=args.voice_text if args.media_type == "voice" else "",
+            **_voice_kwargs(args.media_type, args.media))
     else:
         item = {"type": 1, "text_item": {"text": args.text}}
     body = {

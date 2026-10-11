@@ -1,0 +1,10 @@
+[Unit]
+Description=WeChat daily push (noon slot, 12:00 Asia/Shanghai)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/hatch/workspace/wechat-bridge
+ExecStart=/usr/bin/python3 /home/hatch/workspace/wechat-bridge/daily_push.py noon
