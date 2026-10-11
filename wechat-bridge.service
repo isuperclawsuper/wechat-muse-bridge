@@ -1,0 +1,15 @@
+[Unit]
+Description=WeChat iLink forwarder (Muse bridge)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/hatch/workspace/wechat-bridge
+ExecStart=/usr/bin/python3 /home/hatch/workspace/wechat-bridge/forwarder.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

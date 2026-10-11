@@ -1,0 +1,14 @@
+account.json
+state.json
+inbox/
+processed/
+failed/
+logs/
+__pycache__/
+*.pyc
+*.log
+*.flag
+.falg_reported
+.flag_reported
+qr_bind.png
+*.tmp
