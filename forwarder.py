@@ -195,6 +195,7 @@ def main():
     log("forwarder 启动")
 
     backoff = 5
+    expired_strikes = 0  # errcode -14 连续命中次数, 成功一次清零
     while True:
         account = load_json(ACCOUNT, {})
         token = account.get("bot_token") or ""
@@ -219,29 +220,28 @@ def main():
             continue
 
         backoff = 5
-        # errcode -14 = 凭证过期(不论其他字段)
+        # errcode -14 = 会话过期: 先自动 1 小时冷却再恢复(借鉴 weixin-agent-sdk),
+        # 连续 3 次冷却仍过期才立 flag 转人工扫码
         errcode = resp.get("errcode") if isinstance(resp, dict) else None
         if errcode == -14:
-            open(TOKEN_EXPIRED_FLAG, "w").write(
-                time.strftime("%Y-%m-%d %H:%M:%S"))
-            log("token 过期(errcode -14), 已立 flag, 等待重新绑定")
-            time.sleep(60)
+            expired_strikes += 1
+            if expired_strikes > 3:
+                open(TOKEN_EXPIRED_FLAG, "w").write(
+                    time.strftime("%Y-%m-%d %H:%M:%S"))
+                log("token 过期(errcode -14)连续3次冷却未恢复, 已立 flag, 等待重新绑定")
+                time.sleep(60)
+                continue
+            log("token 过期(errcode -14), 进入1小时冷却后自动恢复 (第%d次)" % expired_strikes)
+            for _ in range(60):
+                time.sleep(60)
             continue
+        expired_strikes = 0
 
         msgs = resp.get("msgs") if isinstance(resp, dict) else None
         if not isinstance(msgs, list):
             keys = list(resp.keys()) if isinstance(resp, dict) else type(resp).__name__
             raw = json.dumps(resp, ensure_ascii=False)[:300]
             log("getupdates 异常(无 msgs): keys=%s raw=%s" % (keys, raw))
-            time.sleep(10)
-            continue
-            if errcode == -14:
-                # 凭证过期: 立 flag 文件, 看门狗看到后提醒用户重新扫码
-                open(TOKEN_EXPIRED_FLAG, "w").write(
-                    time.strftime("%Y-%m-%d %H:%M:%S"))
-                log("token 过期(errcode -14), 已立 flag, 等待重新绑定")
-                time.sleep(60)
-                continue
             time.sleep(10)
             continue
 
