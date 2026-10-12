@@ -219,10 +219,9 @@ def main():
             backoff = min(backoff * 2, 120)
             continue
 
-        backoff = 5
         # errcode -14 = 会话过期: 先自动 1 小时冷却再恢复(借鉴 weixin-agent-sdk),
         # 连续 3 次冷却仍过期才立 flag 转人工扫码
-        # 注: backoff 在这里不重置, 交给下面的 msgs 健康检查统一处理
+        # 注: backoff 不在这里重置, 只有健康轮询(含 msgs 数组)才归零
         errcode = resp.get("errcode") if isinstance(resp, dict) else None
         if errcode == -14:
             expired_strikes += 1
