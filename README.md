@@ -2,11 +2,16 @@
 
 把微信(ClawBot 插件, 经腾讯 iLink 接口)接到 Muse。
 
-## 链路
+## 链路（2026-10-12 起：Railway 轮询方案）
 
-微信 → `ilink/bot/getupdates` 长轮询 → `forwarder.py` → `inbox/` →
+微信 → Railway `railway-poller` (`getupdates` 长轮询) → 内存队列 →
+云电脑 `railway_pull.py` (每 30s 拉取) → `inbox/` →
 hook `wechat-inbox` (15s) 叫醒 agent → 回复经 `send_reply.py` 发回微信 →
 主聊天同步一份。
+
+迁移原因见 `railway-迁移说明.md`：云电脑出口 IP 被腾讯 iLink 限流
+（`getupdates` 返回无文档的 `{"ret": -3}`），Railway 出口正常。
+旧 `forwarder.py`（云电脑直连轮询）已停用保留。
 
 ## 文件
 

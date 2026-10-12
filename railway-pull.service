@@ -1,0 +1,15 @@
+[Unit]
+Description=WeChat bridge Railway puller (fetch envelopes -> inbox/)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 本机出站 HTTPS 必须走出口代理(无则直连被劫持导致 SSL 握手超时), 环境变量在 /etc/environment
+EnvironmentFile=/etc/environment
+ExecStart=/usr/bin/python3 /home/hatch/workspace/wechat-bridge/railway_pull.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
