@@ -222,6 +222,7 @@ def main():
         backoff = 5
         # errcode -14 = 会话过期: 先自动 1 小时冷却再恢复(借鉴 weixin-agent-sdk),
         # 连续 3 次冷却仍过期才立 flag 转人工扫码
+        # 注: backoff 在这里不重置, 交给下面的 msgs 健康检查统一处理
         errcode = resp.get("errcode") if isinstance(resp, dict) else None
         if errcode == -14:
             expired_strikes += 1
@@ -239,11 +240,17 @@ def main():
 
         msgs = resp.get("msgs") if isinstance(resp, dict) else None
         if not isinstance(msgs, list):
+            # 服务端显式错误(如 {"ret": -3})同样走指数退避, 避免显式错误把退避
+            # 清零导致高频轰炸服务端(借鉴 weixin-agent-sdk 连续失败 30s 退避的思路)
             keys = list(resp.keys()) if isinstance(resp, dict) else type(resp).__name__
             raw = json.dumps(resp, ensure_ascii=False)[:300]
-            log("getupdates 异常(无 msgs): keys=%s raw=%s" % (keys, raw))
-            time.sleep(10)
+            log("getupdates 异常(无 msgs): keys=%s raw=%s, %ss 后重试" % (keys, raw, backoff))
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 120)
             continue
+
+        # 健康轮询(含 msgs 数组): 退避归零
+        backoff = 5
 
         # token 有效: 若之前立过过期 flag, 现在清除
         if os.path.exists(TOKEN_EXPIRED_FLAG):
