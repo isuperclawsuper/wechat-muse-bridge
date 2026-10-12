@@ -216,7 +216,7 @@ def main():
         except Exception as e:  # 网络错误等: 退避重试
             log("getupdates 网络异常: %s, %ss 后重试" % (e, backoff))
             time.sleep(backoff)
-            backoff = min(backoff * 2, 120)
+            backoff = min(backoff * 2, 300)
             continue
 
         # errcode -14 = 会话过期: 先自动 1 小时冷却再恢复(借鉴 weixin-agent-sdk),
@@ -245,7 +245,7 @@ def main():
             raw = json.dumps(resp, ensure_ascii=False)[:300]
             log("getupdates 异常(无 msgs): keys=%s raw=%s, %ss 后重试" % (keys, raw, backoff))
             time.sleep(backoff)
-            backoff = min(backoff * 2, 120)
+            backoff = min(backoff * 2, 300)
             continue
 
         # 健康轮询(含 msgs 数组): 退避归零
